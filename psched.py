@@ -2,10 +2,41 @@ from datetime import datetime, timedelta
 from jinja2 import Template
 import numpy as np
 
-T0 = datetime(2019, 5, 13, 9, 30)
 DEFAULT_TEMPLATE = Template(
     '{{ start }}-{{ end }} : {{ name }} '
     '{% if stakeholders %}({{ stakeholders }}){% endif %}')
+
+
+class Time(object):
+
+    def __init__(self, hour, minute=None):
+        if isinstance(hour, str):
+            hour, minute = [int(x) for x in hour.split(':')]
+        self.t = datetime(2019, 1, 1, hour, minute)
+
+    def __iadd__(self, minutes):
+        self.t += timedelta(minutes=minutes)
+        return self
+
+    def __add__(self, minutes):
+        t = Time(self.t.hour, self.t.minute)
+        t += minutes
+        return t
+
+    def __lt__(self, t):
+        return self.t < t.t
+
+    def __gt__(self, t):
+        return self.t > t.t
+
+    def __str__(self):
+        return repr(self)
+
+    def __repr__(self):
+        return self.t.strftime('%H:%M')
+
+
+T0 = Time('9:30')
 
 
 class WaitTimeCounter(object):
@@ -84,7 +115,7 @@ class Schedule(object):
                 violations += constraint(t)
             for name in self.stakeholders:
                 violations += wait_times[name].append(event, duration, t)
-            t = t + timedelta(minutes=duration)
+            t = t + duration
         return (
             {name: counter.total_time for name, counter in wait_times.items()},
             violations)
@@ -116,17 +147,16 @@ class Schedule(object):
         order = self.order[idx]
         s = []
         for event, _, duration in self.events.iterate(order):
-            stakeholders = []
-            for name, (focus, _) in self.stakeholders.items():
-                if event in focus:
-                    stakeholders.append(name)
+            stakeholders = [name
+                            for name, (focus, _) in self.stakeholders.items()
+                            if event in focus]
             if len(stakeholders):
                 stakeholders = ', '.join(stakeholders)
             else:
                 stakeholders = ''
-            t1 = t0 + timedelta(minutes=duration)
-            s.append(template.render(start=t0.strftime('%H:%M'),
-                                     end=t1.strftime('%H:%M'),
+            t1 = t0 + duration
+            s.append(template.render(start=t0,
+                                     end=t1,
                                      name=event,
                                      stakeholders=stakeholders))
             t0 = t1
@@ -134,15 +164,21 @@ class Schedule(object):
 
 
 def not_before(time):
-    h, m = time.split(':')
-    t = datetime(2019, 5, 13, int(h), int(m))
-    return lambda x: x < t
+    t = Time(time)
+
+    def checker(x):
+        return x < t
+
+    return checker
 
 
 def not_after(time):
-    h, m = time.split(':')
-    t = datetime(2019, 5, 13, int(h), int(m))
-    return lambda x: x > t
+    t = Time(time)
+
+    def checker(x):
+        return x > t
+
+    return checker
 
 
 if __name__ == '__main__':
@@ -184,7 +220,7 @@ if __name__ == '__main__':
     for i in range(200):
         sched.compete()
 
-    print(sched.render(template=Template(
-        r'{{ start }} -- {{ end }} & {{ name }} & {{ stakeholders }}\\')))
-    # print(sched.render())
+    # print(sched.render(template=Template(
+    #     r'{{ start }} -- {{ end }} & {{ name }} & {{ stakeholders }}\\')))
+    print(sched.render())
     print(sched.individual_wait_times())
