@@ -1,3 +1,4 @@
+from tqdm import trange
 from datetime import datetime, timedelta
 from jinja2 import Template
 import numpy as np
@@ -89,8 +90,12 @@ class Events(object):
 
 class Schedule(object):
 
-    def __init__(self, events, stakeholders=None, t0=T0, event_duration=15):
-        self.n = 20
+    def __init__(self,
+                 events,
+                 stakeholders=None,
+                 t0=T0,
+                 generation_size=100):
+        self.n = generation_size
         self.t0 = t0
         self.events = events
         self.stakeholders = stakeholders
@@ -124,7 +129,7 @@ class Schedule(object):
         self.scores = np.array([self.score(o) for o in self.order])
         self.order, self.scores = self.sort_by_rank(self.order, self.scores)
 
-    def compete(self, nbest=4, pswap=0.5):
+    def compete(self, nbest=4, pswap=0.8):
         new_order = []
         for _ in range(self.n):
             idx = np.random.randint(nbest)
@@ -135,7 +140,15 @@ class Schedule(object):
             new_order.append(order)
         self.order = np.array(new_order)
         self.refresh()
-        print(self.scores.min(), self.scores.mean())
+
+    def optimize(self, ngenerations):
+        with trange(ngenerations) as generations:
+            generations.set_description('Generating')
+            for _ in generations:
+                self.compete()
+                generations.set_postfix(
+                    best=self.scores.min(),
+                    mean='{:.3f}'.format(self.scores.mean()))
 
     @staticmethod
     def sort_by_rank(orders, scores):
@@ -217,8 +230,7 @@ if __name__ == '__main__':
     sched = Schedule(
         Events(events),
         stakeholders)
-    for i in range(200):
-        sched.compete()
+    sched.optimize(200)
 
     # print(sched.render(template=Template(
     #     r'{{ start }} -- {{ end }} & {{ name }} & {{ stakeholders }}\\')))
