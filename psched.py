@@ -135,7 +135,7 @@ class Schedule(object):
             new_order.append(order)
         self.order = np.array(new_order)
         self.refresh()
-        print(self.scores[:nbest])
+        print(self.scores.min(), self.scores.mean())
 
     @staticmethod
     def sort_by_rank(orders, scores):
