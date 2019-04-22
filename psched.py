@@ -1,3 +1,9 @@
+"""
+Usage:
+    psched.py [options] <config>
+"""
+from docopt import docopt
+import yaml
 from tqdm import trange
 from datetime import datetime, timedelta
 from jinja2 import Template
@@ -65,12 +71,18 @@ class WaitTimeCounter(object):
 
 class Events(object):
 
-    def __init__(self, events, break_every=5, lunch_after=10):
+    def __init__(self, events,
+                 break_every=5,
+                 lunch_after=10,
+                 lunch_duration=60,
+                 break_duration=15,
+                 event_duration=15):
         self.events = list(events)
         self.break_every = break_every
         self.lunch_after = lunch_after
-        self.lunch_duration = 60
-        self.break_duration = 15
+        self.lunch_duration = lunch_duration
+        self.break_duration = break_duration
+        self.event_duration = event_duration
 
     def __len__(self):
         return len(self.events)
@@ -78,7 +90,7 @@ class Events(object):
     def iterate(self, order):
         i, k = 0, 0
         for idx in order:
-            yield list(self.events[idx]) + [15]
+            yield list(self.events[idx]) + [self.event_duration]
             i += 1
             k += 1
             if k == self.lunch_after:
@@ -160,13 +172,10 @@ class Schedule(object):
         order = self.order[idx]
         s = []
         for event, _, duration in self.events.iterate(order):
-            stakeholders = [name
-                            for name, (focus, _) in self.stakeholders.items()
-                            if event in focus]
-            if len(stakeholders):
-                stakeholders = ', '.join(stakeholders)
-            else:
-                stakeholders = ''
+            stakeholders = ', '.join(
+                [name
+                 for name, (focus, _) in self.stakeholders.items()
+                 if event in focus])
             t1 = t0 + duration
             s.append(template.render(start=t0,
                                      end=t1,
@@ -177,7 +186,10 @@ class Schedule(object):
 
 
 def not_before(time):
-    t = Time(time)
+    if isinstance(time, Time):
+        t = time
+    else:
+        t = Time(time)
 
     def checker(x):
         return x < t
@@ -186,7 +198,10 @@ def not_before(time):
 
 
 def not_after(time):
-    t = Time(time)
+    if isinstance(time, Time):
+        t = time
+    else:
+        t = Time(time)
 
     def checker(x):
         return x > t
@@ -194,38 +209,51 @@ def not_after(time):
     return checker
 
 
+class ConfigError(Exception):
+    pass
+
+
+def read_config(fname):
+    with open(fname) as f:
+        content = yaml.load(f, Loader=yaml.Loader)
+
+    events = []
+    for event in content['events']:
+        name = event['name']
+        if 'constraints' in event:
+            constraints = [parse_constraint(constraint)
+                           for constraint in event['constraints']]
+        else:
+            constraints = []
+        events.append((name, constraints))
+
+    stakeholders = {}
+    for stakeholder in content['stakeholders']:
+        name = stakeholder['name']
+        focus = set(stakeholder['focus'])
+        if 'constraints' in stakeholder:
+            constraints = [parse_constraint(constraint)
+                           for constraint in stakeholder['constraints']]
+        else:
+            constraints = []
+        stakeholders[name] = (focus, constraints)
+
+    return events, stakeholders
+
+
+def parse_constraint(constraint):
+    name = '_'.join(constraint.split()[:-1])
+    time = Time(constraint.split()[-1])
+    if name == 'not_after':
+        return not_after(time)
+    elif name == 'not_before':
+        return not_before(time)
+    else:
+        raise ConfigError('Unknown constraint {}'.format(name))
+
+
 if __name__ == '__main__':
-    events = [('Torsten Hansen', []),
-              ('Matthias Schmidt', [not_after('11:00')]),
-              ('Anna Popanna', []),
-              ('Dela Obutu', []),
-              ('Tara Dezhdar', []),
-              ('Ingo Fruend', []),
-              ('Juliane Meyer', []),
-              ('Joe Fresh', []),
-              ('Tatjana Danilova', []),
-              ('Coolio', []),
-              ('Kurt (ohne Helm und ohne Gurt)', []),
-              ('Heinz-Christian Fruend', []),
-              ]
-    stakeholders = {'Otto von Bismark':
-                    ({'Torsten Hansen', 'Matthias Schmidt', 'Anna Popanna',
-                      'Kurt (ohne Helm und ohne Gurt)'},
-                     [not_before('10:00'),
-                      not_after('13:00')]),
-                    'Hannelore Elsner':
-                    ({'Anna Popanna', 'Dela Obutu', 'Torsten Hansen',
-                      'Joe Fresh', 'Coolio'},
-                     []),
-                    'Franz von Assisi':
-                    ({'Dela Obutu', 'Tara Dezhdar', 'Ingo Fruend', 'Coolio',
-                      'Heinz-Christian Fruend'},
-                     [not_after('13:00')]),
-                    'Nathan der Weise':
-                    ({'Ingo Fruend', 'Juliane Meyer', 'Joe Fresh',
-                      'Tatjana Danilova', 'Kurt (ohne Helm und ohne Gurt)'},
-                     [not_before('10:30')]),
-                    }
+    events, stakeholders = read_config('config.yml')
 
     sched = Schedule(
         Events(events),
