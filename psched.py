@@ -1,6 +1,16 @@
 """
 Usage:
     psched.py [options] <config>
+
+Options:
+    -o <outfile>, --out=<outfile>
+        Output file base [Default: schedule]
+    --txt
+        Write txt output
+    --html
+        write html output
+    --tex
+        write latex table output
 """
 from docopt import docopt
 import yaml
@@ -9,9 +19,15 @@ from datetime import datetime, timedelta
 from jinja2 import Template
 import numpy as np
 
-DEFAULT_TEMPLATE = Template(
-    '{{ start }}-{{ end }} : {{ name }} '
-    '{% if stakeholders %}({{ stakeholders }}){% endif %}')
+TEMPLATES = {
+    'txt': Template('{{ start }}-{{ end }} : {{ name }} '
+                    '{% if stakeholders %}({{ stakeholders }}){% endif %}'),
+    'html': Template('<li><em>{{ start }}-{{ end }}</em> {{ name }}'
+                     '{% if stakeholders %} ({{ stakeholders }}){% endif %}'
+                     '</li>'),
+    'tex': Template(r'{{ start }} -- {{ end }} & {{ name }} &'
+                    r' {{ stakeholders }}\\')
+}
 
 
 class Time(object):
@@ -167,7 +183,7 @@ class Schedule(object):
         i = np.argsort(scores)
         return orders[i], scores[i]
 
-    def render(self, idx=0, template=DEFAULT_TEMPLATE):
+    def render(self, idx=0, template=TEMPLATES['txt']):
         t0 = self.t0
         order = self.order[idx]
         s = []
@@ -261,7 +277,15 @@ if __name__ == '__main__':
         stakeholders)
     sched.optimize(200)
 
-    # print(sched.render(template=Template(
-    #     r'{{ start }} -- {{ end }} & {{ name }} & {{ stakeholders }}\\')))
+    if args['--txt']:
+        with open(args['--out'] + '.txt', 'w') as f:
+            f.write(sched.render(template=TEMPLATES['txt']))
+    if args['--html']:
+        with open(args['--out'] + '.html', 'w') as f:
+            f.write(sched.render(template=TEMPLATES['html']))
+    if args['--tex']:
+        with open(args['--out'] + '.tex', 'w') as f:
+            f.write(sched.render(template=TEMPLATES['tex']))
+
     print(sched.render())
     print(sched.individual_wait_times())
