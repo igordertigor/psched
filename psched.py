@@ -253,7 +253,8 @@ def parse_constraint(constraint):
 
 
 if __name__ == '__main__':
-    events, stakeholders = read_config('config.yml')
+    args = docopt(__doc__)
+    events, stakeholders = read_config(args['<config>'])
 
     sched = Schedule(
         Events(events),

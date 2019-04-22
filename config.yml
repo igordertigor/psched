@@ -1,0 +1,31 @@
+events:
+  - name: Torsten Hansen
+  - name: Matthias Schmidt
+    constraints:
+      - not after 11:00
+  - name: Anna Popanna
+  - name: Dela Obutu
+  - name: Tara Dezhdar
+  - name: Ingo Fruend
+  - name: Juliane Meyer
+  - name: Joe Fresh
+  - name: Tatjana Danilova
+  - name: Coolio
+  - name: Kurt (ohne Helm und ohne Gurt)
+  - name: Heinz-Christian Fruend
+stakeholders:
+  - name: Otto von Bismark
+    focus: ['Torsten Hansen', 'Matthias Schmidt', 'Anna Popanna', 'Kurt (ohne Helm und ohne Gurt)']
+    constraints:
+      - not before 10:00
+      - not after 13:00
+  - name: Hannelore Elsner
+    focus: ['Anna Popanna', 'Dela Obutu', 'Torsten Hansen', 'Joe Fresh', 'Coolio']
+  - name: Franz von Assisi
+    focus: ['Dela Obutu', 'Tara Dezhdar', 'Ingo Fruend', 'Coolio', 'Heinz-Christian Fruend']
+    constraints:
+      - not after 13:00
+  - name: Nathan der Weise
+    focus: ['Ingo Fruend', 'Juliane Meyer', 'Joe Fresh', 'Tatjana Danilova', 'Kurt (ohne Helm und ohne Gurt)']
+    constraints:
+      - not before 10:30
