@@ -11,6 +11,10 @@ Options:
         write html output
     --tex
         write latex table output
+    -n <ngenerations>, --number-of-generations=<ngenerations>
+        Number of generations [Default: 200]
+    -p <populationsize>, --population-size=<populationsize>
+        Number of schedules per population [Default: 200]
 """
 from docopt import docopt
 import yaml
@@ -111,7 +115,7 @@ class Events(object):
             k += 1
             if k == self.lunch_after:
                 yield ('Lunch', [], self.lunch_duration)
-                i, k = 0, 0
+                i = 0
             elif i == self.break_every:
                 yield ('Break', [], self.break_duration)
 
@@ -274,8 +278,10 @@ if __name__ == '__main__':
 
     sched = Schedule(
         Events(events),
-        stakeholders)
-    sched.optimize(200)
+        stakeholders,
+        generation_size=int(args['--population-size']),
+    )
+    sched.optimize(int(args['--number-of-generations']))
 
     if args['--txt']:
         with open(args['--out'] + '.txt', 'w') as f:
